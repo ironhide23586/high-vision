@@ -25,7 +25,7 @@ import tensorflow as tf
 #
 #     tf.disable_v2_behavior()
 
-import cv2
+# import cv2
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm

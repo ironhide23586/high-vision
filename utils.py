@@ -15,7 +15,7 @@ Website: https://www.linkedin.com/in/souham/
 import os
 from queue import Queue
 
-import cv2
+# import cv2
 import numpy as np
 
 MODE = 'train'  # choose between train and val

@@ -16,8 +16,9 @@ Website: https://www.linkedin.com/in/souham/
 import os
 from glob import glob
 
-import cv2
+# import cv2
 import numpy as np
+import rioxarray
 
 from data_utils import async_data_reader
 import utils
@@ -59,7 +60,7 @@ class SBU:
         self.epoch_size = self.im_ids.shape[0]
 
     def get_label(self, idx):
-        mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
+        mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
         return mask
 
     def get_image(self, idx):
@@ -67,7 +68,8 @@ class SBU:
         # c = 0
         ims = []
         for fp in fps:
-            im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
+            im = rioxarray.open_rasterio(fp).data.squeeze()
+            # im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
             if im is None:
                 return None
             ims.append(im)
@@ -149,9 +151,9 @@ class SegmapIngestion:
             mask = cv2.resize(mask[start_h:end_h, start_w:end_w].astype(np.float32),
                               (self.w, self.h), interpolation=cv2.INTER_NEAREST)
         else:
-            im = utils.resize_aspect_ratio_preserved(im_in, min(self.h, self.w), interp=cv2.INTER_LINEAR)
+            # im = utils.resize_aspect_ratio_preserved(im_in, min(self.h, self.w), interp=cv2.INTER_LINEAR)
             # mask = utils.resize_aspect_ratio_preserved(mask_in, min(1280, 1280), interp=cv2.INTER_NEAREST)
-            # im = im_in.copy()
+            im = im_in.copy()
             mask = mask_in.copy()
         if random_color_perturbations:
             delta = np.random.randint(-45, 45)
@@ -171,8 +173,8 @@ class SegmapDataStreamer:
         self.num_streamers = 1
         gt_dir = utils.SHADOW_GT_DIR
         dataset = SBU(gt_dir, shuffle=shuffle, mode=mode)
-        rc = True
-        rr = True
+        rc = False
+        rr = False
         rp = False
         if mode != 'train':
             rc = False
@@ -180,7 +182,7 @@ class SegmapDataStreamer:
             rp = False
         irvis_nn_ingestor = SegmapIngestion(dataset, h=h, w=w, random_crop=rc, random_rotate=rr,
                                             random_color_perturbations=rp)
-        # x, y = irvis_nn_ingestor.get_data_train_format(0)
+        x, y = irvis_nn_ingestor.get_data_train_format(0)
         self.data_feeder = async_data_reader.TrainFeeder(irvis_nn_ingestor, batch_size=batch_size)
 
     def get_data_batch(self):
