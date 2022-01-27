@@ -111,11 +111,11 @@ def overlay_mask(im_in, conf_mask_in, color=(255, 0, 0), alpha=.5, thresh=.5):
     return im
 
 
-def resize_aspect_ratio_preserved(im, min_dim_sz=720, interp=cv2.INTER_NEAREST):
-    h, w = im.shape[0], im.shape[1]
-    new_w, new_h = get_rescaled_dims(w, h, min_dim_sz=min_dim_sz)
-    im_ret = cv2.resize(im, (new_w, new_h), interpolation=interp)
-    return im_ret
+# def resize_aspect_ratio_preserved(im, min_dim_sz=720, interp=cv2.INTER_NEAREST):
+#     h, w = im.shape[0], im.shape[1]
+#     new_w, new_h = get_rescaled_dims(w, h, min_dim_sz=min_dim_sz)
+#     im_ret = cv2.resize(im, (new_w, new_h), interpolation=interp)
+#     return im_ret
 
 
 def unit_vector(vector):

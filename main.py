@@ -13,7 +13,7 @@ Website: https://www.linkedin.com/in/souham/
 """
 
 
-import cv2
+# import cv2
 import numpy as np
 
 from nets_v2.nn import IrvisNN
