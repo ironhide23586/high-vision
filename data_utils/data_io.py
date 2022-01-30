@@ -182,7 +182,7 @@ class SegmapDataStreamer:
             rp = False
         irvis_nn_ingestor = SegmapIngestion(dataset, h=h, w=w, random_crop=rc, random_rotate=rr,
                                             random_color_perturbations=rp)
-        x, y = irvis_nn_ingestor.get_data_train_format(0)
+        # x, y = irvis_nn_ingestor.get_data_train_format(0)
         self.data_feeder = async_data_reader.TrainFeeder(irvis_nn_ingestor, batch_size=batch_size)
 
     def get_data_batch(self):
