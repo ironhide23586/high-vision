@@ -150,8 +150,8 @@ def nn_preprocess(im_in_):  # re-implemented what tensorflow was doing internall
     # im_edged = auto_canny(im_in) / 255.
     # im_edged[im_edged < 1.] = -1.
     # im = im_in / 255.
-    # im = im - .5
-    # im = im * 2.
+    im = im - .5
+    im = im * 2.
     # h, w, _ = im.shape
     # im_ = np.zeros([h, w, 4], dtype=np.float)
     # im_[:, :, :3] = im
