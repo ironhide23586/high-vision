@@ -151,11 +151,11 @@ class IrvisNN:
         self.pred_shadow_mask_logits, self.optimization_vars_and_ops, \
         self.grad_stop_vars_shadow, self.init_ops, \
         self.all_params_tf = models.transunet_2d(self.input_tensor,
-                                                 filter_num=[16, 16, 32],
+                                                 filter_num=[16, 16, 16],
                                                  n_labels=1,
                                                  stack_num_down=self.n_stacks_down, stack_num_up=self.n_stack_ups,
-                                                 proj_dim=32,
-                                                 num_mlp=32,
+                                                 proj_dim=16,
+                                                 num_mlp=16,
                                                  num_heads=2,
                                                  num_transformer=1, activation='ReLU',
                                                  mlp_activation='GELU',
