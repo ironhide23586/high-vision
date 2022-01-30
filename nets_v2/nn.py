@@ -99,7 +99,7 @@ class IrvisNN:
                  load_final_model=False, init_model=False):
         self.mode = mode
         self.update_bn_stats = update_bn_stats
-        self.input_tensor = tf.keras.Input(shape=[utils.IM_DIM // 2, utils.IM_DIM // 2, 4], dtype=tf.float32)
+        self.input_tensor = tf.keras.Input(shape=[utils.IM_DIM, utils.IM_DIM, 4], dtype=tf.float32)
         self.n_stack_ups = 2
         self.n_stacks_down = 2
         self.model_save_dir_root = model_save_dir_root
