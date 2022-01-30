@@ -39,20 +39,20 @@ if __name__ == '__main__':
     segmap_data_streamer_train = SegmapDataStreamer(mode='train')
     segmap_data_streamer_val = SegmapDataStreamer(mode='val')
 
-    irvis_nn = IrvisNN(load_final_model=False, data_feeder=segmap_data_streamer_train,
-                       val_data_feeder=segmap_data_streamer_val, init_model=False)
+    irvis_nn = IrvisNN(load_final_model=True, data_feeder=segmap_data_streamer_train,
+                       val_data_feeder=segmap_data_streamer_val, init_model=True)
     # irvis_nn.init(run_number=0, step_number=0)
     # irvis_nn.init(run_number=16, step_number=92)
 
     irvis_nn.train()
 
-    ims_raw = utils.nn_unpreprocess(ims)
-
-    im = ims_raw[0]
-    lbl = labels[0]
-    im_edge = auto_canny(im)
-    cv2.imwrite('scratchspace/x.png', im)
-    cv2.imwrite('scratchspace/x_edge.png', im_edge)
-    cv2.imwrite('scratchspace/y.png', lbl * 255)
-    k = 0
+    # ims_raw = utils.nn_unpreprocess(ims)
+    #
+    # im = ims_raw[0]
+    # lbl = labels[0]
+    # im_edge = auto_canny(im)
+    # cv2.imwrite('scratchspace/x.png', im)
+    # cv2.imwrite('scratchspace/x_edge.png', im_edge)
+    # cv2.imwrite('scratchspace/y.png', lbl * 255)
+    # k = 0
 
