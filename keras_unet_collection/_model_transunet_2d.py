@@ -456,8 +456,8 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
 
     out = tf.concat([tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation, name='smoothener_pre')(tap), OUT],
                     axis=-1)
-    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 3, activation=output_activation, name='smoothener_out')(out)
-    OUT = tf.image.resize(OUT, (1280, 1280), antialias=True, preserve_aspect_ratio=True)
+    OUT = tf.keras.layers.Conv2DTranspose(1, 1, 1, activation=output_activation, name='smoothener_out')(out)
+    # OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
 
     # sm = tf.keras.layers.Conv2DTranspose(8, 3, 1, activation='relu', name='denoiser_l0',
     #                                      use_bias=False)(input_placeholder)

@@ -34,6 +34,6 @@ if __name__ == '__main__':
     irvis_nn = IrvisNN(load_final_model=False, data_feeder=segmap_data_streamer_train,
                        val_data_feeder=segmap_data_streamer_val, init_model=False)
     # irvis_nn.init(run_number=0, step_number=0)
-    irvis_nn.init(run_number=16, step_number=92)
+    # irvis_nn.init(run_number=16, step_number=92)
 
     irvis_nn.train()
