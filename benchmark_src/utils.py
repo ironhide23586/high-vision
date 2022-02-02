@@ -19,7 +19,7 @@ from queue import Queue
 import numpy as np
 
 MODE = 'train'  # choose between train and val
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 SHUFFLE = True
 PRINT_LOSS_EVERY_N_STEPS = 50
 IDX_FPATH = 'train_val_indices'
@@ -144,7 +144,7 @@ def auto_canny(image_, sigma=0.33):
 
 
 def nn_preprocess(im_in_):  # re-implemented what tensorflow was doing internally for NASnet.
-    im = im_in_ / im_in_.max()
+    im = im_in_ / 65535.
     im = im - .5
     im = im * 2.
     return im

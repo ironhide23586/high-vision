@@ -1,3 +1,4 @@
 *.pyc
 scratchspace/
 .idea/
+benchmark_src/*.png

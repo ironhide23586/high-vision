@@ -88,6 +88,7 @@ class TrainFeeder:
             #     continue
             ims.append(im)
             gt_list.append(gts)
+            idx += 1
         ims = np.array(ims).astype(np.float32)
         gt_list_out = np.array(gt_list).astype(np.float32)
         return ims, gt_list_out

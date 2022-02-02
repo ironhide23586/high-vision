@@ -87,12 +87,19 @@ class TrainFeeder:
                 im, gts = self.ingestor.get_data_train_format(idx)
                 if im is None or gts is None:
                     idx += 1
+                    if idx >= self.batches_per_epoch:
+                        idx = 0
                     continue
             except:
                 self.num_failed_inputs += 1
                 print('Failed reading', self.num_failed_inputs, 'inputs')
                 idx += 1
+                if idx >= self.batches_per_epoch:
+                    idx = 0
                 continue
+            idx += 1
+            if idx >= self.batches_per_epoch:
+                idx = 0
             ims.append(im)
             gt_list.append(gts)
         ims = np.array(ims).astype(np.float32)
