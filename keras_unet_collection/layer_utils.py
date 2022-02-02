@@ -410,6 +410,6 @@ def CONV_output(X, n_labels, kernel_size=1, activation=None, name='conv_output')
             activation_func = eval(activation)
             X = activation_func(name='{}_activation'.format(name))(X)
         else:
-            X = activation(name='{}_activation'.format(name))(X)
+            X = activation(X, name='{}_activation'.format(name))
     return X
 
