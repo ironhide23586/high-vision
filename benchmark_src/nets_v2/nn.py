@@ -82,7 +82,7 @@ class IrvisNN:
 
     def __init__(self, mode='infer'):
         self.mode = mode
-        self.update_bn_stats = False
+        self.update_bn_stats = True
         self.input_tensor = tf.keras.Input(shape=[utils.IM_DIM, utils.IM_DIM, 4], dtype=tf.float32)
         self.n_stack_ups = 2
         self.n_stacks_down = 2
@@ -99,10 +99,10 @@ class IrvisNN:
                                                      num_heads=2,
                                                      num_transformer=1, activation='ReLU',
                                                      mlp_activation='GELU',
-                                                     output_activation=None, batch_norm=True,
+                                                     output_activation=tf.nn.relu, batch_norm=True,
                                                      pool='max',
                                                      unpool=False, backbone=None,
-                                                     weights=None, freeze_backbone=utils.FREEZE_BACKBONE,
+                                                     weights=None,
                                                      freeze_batch_norm=not self.update_bn_stats,
                                                      name='transunet')
             self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
@@ -116,10 +116,10 @@ class IrvisNN:
         print('Loaded model from', load_checkpoint_fpath)
 
     def __inference_worker(self, ims):
-        if ims.shape[0] > 1:
-            return self.model.predict_on_batch(ims)
+        # if ims.shape[0] > 1:
+        #     return self.model.predict_on_batch(ims)
         # return self.model(np.tile(ims, [utils.BATCH_SIZE, 1, 1, 1]), training=False)[:1]
-        return self.model(ims, training=False)
+        return self.model(ims, training=True)
 
 
     def infer_cloud_cov(self, ims):

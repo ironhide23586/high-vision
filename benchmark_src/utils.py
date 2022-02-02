@@ -19,7 +19,7 @@ from queue import Queue
 import numpy as np
 
 MODE = 'train'  # choose between train and val
-BATCH_SIZE = 2
+BATCH_SIZE = 1
 SHUFFLE = True
 PRINT_LOSS_EVERY_N_STEPS = 50
 IDX_FPATH = 'train_val_indices'
@@ -30,7 +30,7 @@ FREEZE_DECODER = False
 IM_DIM = 512
 SHADOW_GT_DIR = '../../driven-data/cloud-cover'
 FINAL_MODEL_DIR = 'final_model'
-FINAL_MODEL_NAME = 'flonet-weights.03-0.89-0.88.hdf5'
+FINAL_MODEL_NAME = 'flonet-weights.02-0.73-0.94.hdf5'
 
 # BIN_POS_CE_COEFF = 3.
 FOCAL_TVERSKY_POWER = 1.5
