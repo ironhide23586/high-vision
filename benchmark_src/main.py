@@ -23,7 +23,7 @@ if __name__ == '__main__':
     irvis_nn = IrvisNN(mode='infer')
 
     for i in range(segmap_data_streamer_test.data_feeder.batches_per_epoch):
-        x, _ = segmap_data_streamer_test.get_data_batch()
+        x, y_gt = segmap_data_streamer_test.get_data_batch()
         y = irvis_nn.infer_cloud_cov(x)
         k = 0
 

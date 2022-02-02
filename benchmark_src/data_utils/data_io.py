@@ -16,9 +16,9 @@ Website: https://www.linkedin.com/in/souham/
 import os
 from glob import glob
 
-# import cv2
+import cv2
 import numpy as np
-import rioxarray
+# import rioxarray
 
 from data_utils import async_data_reader
 import utils
@@ -48,17 +48,13 @@ class SBU:
             else:
                 idx = np.load(utils.IDX_FPATH + '.npy')
             self.im_fpaths = self.im_fpaths[idx]
-        # n = self.im_fpaths.shape[0]
         self.im_ids = np.array([fp.split(os.sep)[-1] for fp in self.im_fpaths])
         self.mask_fpaths = np.array([self.labels_dir_prefix + os.sep + id + '.tif' for id in self.im_ids])
-        # legit_idx = [os.path.isfile(fp) for fp in self.mask_fpaths]
-        # self.im_fpaths = self.im_fpaths[legit_idx]
-        # self.mask_fpaths = self.mask_fpaths[legit_idx]
-        # self.im_ids = self.im_ids[legit_idx]
         self.epoch_size = self.im_ids.shape[0]
 
     def get_label(self, idx):
-        mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
+        # mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
+        mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
         return mask
 
     def get_image(self, idx):
@@ -66,8 +62,8 @@ class SBU:
         # c = 0
         ims = []
         for fp in fps:
-            im = rioxarray.open_rasterio(fp).data.squeeze()
-            # im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
+            # im = rioxarray.open_rasterio(fp).data.squeeze()
+            im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
             if im is None:
                 return None
             ims.append(im)
@@ -109,8 +105,8 @@ class SegmapIngestion:
 
     def get_data_train_format(self, idx):
         im = self.dataset.get_image(idx)
-        # mask = self.dataset.get_label(idx)
-        mask = None
+        mask = self.dataset.get_label(idx)
+        # mask = None
         im_ret, mask_ret = self.preprocess(im, mask)
 
         # dir = 'scratchspace/sample_train'
