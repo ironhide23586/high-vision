@@ -165,8 +165,8 @@ class IrvisNN:
                                                  weights=None, freeze_backbone=utils.FREEZE_BACKBONE,
                                                  freeze_batch_norm=not self.update_bn_stats,
                                                  name='transunet')
-        # self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
-        self.pred_shadow_mask_probs = tf.clip_by_value(self.pred_shadow_mask_logits, 0., 1.)
+        self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
+        # self.pred_shadow_mask_probs = tf.clip_by_value(self.pred_shadow_mask_logits, 0., 1.)
         self.model = tf.keras.Model(inputs=self.input_tensor, outputs=self.pred_shadow_mask_probs)
         # for l in self.model.layers:
         #     if 'denoiser' not in l.name:
