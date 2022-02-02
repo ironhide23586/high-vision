@@ -185,9 +185,12 @@ class IrvisNN:
                     l.trainable = False
         elif utils.FREEZE_DECODER:
             print('Decoder frozen')
+            print('Trainable Layers -')
             for l in self.model.layers:
                 if '_down0_' not in l.name:
                     l.trainable = False
+                else:
+                    print(l.name)
 
         if self.mode == 'train':
             self.base_lr = base_learn_rate
