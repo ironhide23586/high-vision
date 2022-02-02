@@ -187,7 +187,7 @@ class IrvisNN:
             print('Decoder frozen')
             print('Trainable Layers -')
             for l in self.model.layers:
-                if '_down0_' not in l.name:
+                if '_down0_0' not in l.name:
                     l.trainable = False
                 else:
                     print(l.name)
