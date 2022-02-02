@@ -61,6 +61,7 @@ class SBU:
 
     def get_label(self, idx):
         mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
+        # mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
         return mask
 
     def get_image(self, idx):
@@ -69,6 +70,7 @@ class SBU:
         ims = []
         for fp in fps:
             im = rioxarray.open_rasterio(fp).data.squeeze()
+            # im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
             if im is None:
                 return None
             ims.append(im)

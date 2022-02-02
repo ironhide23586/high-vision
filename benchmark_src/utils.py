@@ -144,7 +144,7 @@ def auto_canny(image_, sigma=0.33):
 
 
 def nn_preprocess(im_in_):  # re-implemented what tensorflow was doing internally for NASnet.
-    im = im_in_ / 65535.
+    im = im_in_ / im_in_.max()
     im = im - .5
     im = im * 2.
     return im

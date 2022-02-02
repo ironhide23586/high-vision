@@ -454,11 +454,13 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
                                                           freeze_backbone=freeze_backbone,
                                                           freeze_batch_norm=freeze_batch_norm, name=name)
     n0 = len(tf.compat.v1.global_variables())
-    OUT = CONV_output(X, n_labels, kernel_size=1, activation=output_activation, name='{}_output'.format(name))
+    OUT = CONV_output(X, n_labels, kernel_size=1, activation=output_activation,
+                      name='{}_outercloudviz_output'.format(name))
 
-    out = tf.concat([tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation, name='smoothener_pre')(tap), OUT],
-                    axis=-1)
-    OUT = tf.keras.layers.Conv2DTranspose(1, 1, 1, activation=output_activation, name='smoothener_out')(out)
+    out = tf.concat([tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation,
+                                            name='smoothener_outercloudviz_pre')(tap), OUT], axis=-1)
+    OUT = tf.keras.layers.Conv2DTranspose(1, 1, 1, activation=output_activation,
+                                          name='smoothener_outercloudviz_out')(out)
     # OUT = tf.keras.layers.Conv2DTranspose(1, 3, 2, activation=output_activation, name='smoothener_out')(out)
     # OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
 

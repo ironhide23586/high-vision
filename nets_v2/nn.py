@@ -181,12 +181,12 @@ class IrvisNN:
         if utils.FREEZE_BACKBONE:
             print('Backbone frozen')
             for l in self.model.layers:
-                if '_expander' not in l.name:
+                if '_outercloudviz_' not in l.name:
                     l.trainable = False
         elif utils.FREEZE_DECODER:
             print('Decoder frozen')
             for l in self.model.layers:
-                if '_expander' in l.name:
+                if '_outercloudviz_' in l.name:
                     l.trainable = False
 
         if self.mode == 'train':
