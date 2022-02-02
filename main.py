@@ -26,8 +26,8 @@ if __name__ == '__main__':
     segmap_data_streamer_val = SegmapDataStreamer(mode='val')
 
     irvis_nn = IrvisNN(load_final_model=True, data_feeder=segmap_data_streamer_train,
-                       val_data_feeder=segmap_data_streamer_val, init_model=False)
-    irvis_nn.init(run_number=0, step_number=3)
+                       val_data_feeder=segmap_data_streamer_val, init_model=True)
+    # irvis_nn.init(run_number=0, step_number=3)
 
     irvis_nn.train()
 
