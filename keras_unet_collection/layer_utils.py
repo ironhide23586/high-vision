@@ -381,7 +381,7 @@ def ASPP_conv(X, channel, activation='ReLU', batch_norm=True, name='aspp'):
     
     return concatenate([b4, b0, b_r6, b_r9, b_r12])
 
-def CONV_output(X, n_labels, kernel_size=1, activation='Softmax', name='conv_output'):
+def CONV_output(X, n_labels, kernel_size=1, activation=None, name='conv_output'):
     '''
     Convolutional layer with output activation.
     
@@ -405,14 +405,11 @@ def CONV_output(X, n_labels, kernel_size=1, activation='Softmax', name='conv_out
     
     X = Conv2D(n_labels, kernel_size, padding='same', use_bias=True, name=name)(X)
     
-    if activation:
-        
-        if activation == 'Sigmoid':
-            X = Activation('sigmoid', name='{}_activation'.format(name))(X)
-            
-        else:
+    if activation is not None:
+        if type(activation) == str:
             activation_func = eval(activation)
             X = activation_func(name='{}_activation'.format(name))(X)
-            
+        else:
+            X = activation(name='{}_activation'.format(name))(X)
     return X
 

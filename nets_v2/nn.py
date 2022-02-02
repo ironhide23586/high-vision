@@ -159,7 +159,7 @@ class IrvisNN:
                                                  num_heads=2,
                                                  num_transformer=1, activation='ReLU',
                                                  mlp_activation='GELU',
-                                                 output_activation='ReLU', batch_norm=True,
+                                                 output_activation=tf.nn.relu, batch_norm=True,
                                                  pool='max',
                                                  unpool=False, backbone=None,
                                                  weights=None, freeze_backbone=utils.FREEZE_BACKBONE,
