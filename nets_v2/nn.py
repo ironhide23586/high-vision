@@ -186,7 +186,7 @@ class IrvisNN:
         elif utils.FREEZE_DECODER:
             print('Decoder frozen')
             for l in self.model.layers:
-                if '_outercloudviz_' in l.name:
+                if '_down0_' not in l.name:
                     l.trainable = False
 
         if self.mode == 'train':

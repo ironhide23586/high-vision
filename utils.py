@@ -24,8 +24,8 @@ SHUFFLE = True
 PRINT_LOSS_EVERY_N_STEPS = 50
 IDX_FPATH = 'train_val_indices'
 
-FREEZE_BACKBONE = True
-FREEZE_DECODER = False
+FREEZE_BACKBONE = False
+FREEZE_DECODER = True
 
 IM_DIM = 512
 SHADOW_GT_DIR = '../driven-data/cloud-cover'
