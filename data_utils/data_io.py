@@ -53,10 +53,10 @@ class SBU:
             self.im_fpaths = self.im_fpaths[int(train_frac * n):]
         self.im_ids = np.array([fp.split(os.sep)[-1] for fp in self.im_fpaths])
         self.mask_fpaths = np.array([self.labels_dir_prefix + os.sep + id + '.tif' for id in self.im_ids])
-        legit_idx = [os.path.isfile(fp) for fp in self.mask_fpaths]
-        self.im_fpaths = self.im_fpaths[legit_idx]
-        self.mask_fpaths = self.mask_fpaths[legit_idx]
-        self.im_ids = self.im_ids[legit_idx]
+        # legit_idx = [os.path.isfile(fp) for fp in self.mask_fpaths]
+        # self.im_fpaths = self.im_fpaths[legit_idx]
+        # self.mask_fpaths = self.mask_fpaths[legit_idx]
+        # self.im_ids = self.im_ids[legit_idx]
         self.epoch_size = self.im_ids.shape[0]
 
     def get_label(self, idx):
