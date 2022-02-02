@@ -36,9 +36,9 @@ if __name__ == '__main__':
         y = irvis_nn.infer_cloud_cov(x)
 
         y = np.squeeze(y)
-        y_ = y**6
+        y_ = y.copy()
         # y_[y_ < .89] = 0
-        cv2.imwrite('../scratchspace/pred2_' + str(i) + '.png', y_ * 255)
+        cv2.imwrite('../scratchspace/pred4_' + str(i) + '.png', y_ * 255)
 
 
         k = 0
