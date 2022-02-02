@@ -69,7 +69,6 @@ class SBU:
         ims = []
         for fp in fps:
             im = rioxarray.open_rasterio(fp).data.squeeze()
-            # im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
             if im is None:
                 return None
             ims.append(im)

@@ -31,6 +31,7 @@ class TrainFeeder:
         self.batch_size = batch_size
         self.epochs = 0
         self.batch_iters = 0
+        self.num_failed_inputs = 0
         self.epoch_size_total = self.ingestor.dataset.epoch_size
         if self.batch_size > self.epoch_size_total:
             logging.warning('Batch size exceeds epoch size, setting batch size to epoch size')
@@ -82,8 +83,14 @@ class TrainFeeder:
         bs = end_idx - start_idx
         # for idx in range(start_idx, end_idx):
         while len(ims) < bs:
-            im, gts = self.ingestor.get_data_train_format(idx)
-            if im is None or gts is None:
+            try:
+                im, gts = self.ingestor.get_data_train_format(idx)
+                if im is None or gts is None:
+                    idx += 1
+                    continue
+            except:
+                self.num_failed_inputs += 1
+                print('Failed reading', self.num_failed_inputs, 'inputs')
                 idx += 1
                 continue
             ims.append(im)

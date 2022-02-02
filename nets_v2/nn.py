@@ -159,14 +159,14 @@ class IrvisNN:
                                                  num_heads=2,
                                                  num_transformer=1, activation='ReLU',
                                                  mlp_activation='GELU',
-                                                 output_activation=None, batch_norm=True,
+                                                 output_activation='ReLU', batch_norm=True,
                                                  pool='max',
                                                  unpool=False, backbone=None,
                                                  weights=None, freeze_backbone=utils.FREEZE_BACKBONE,
                                                  freeze_batch_norm=not self.update_bn_stats,
                                                  name='transunet')
-        self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
-
+        # self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
+        self.pred_shadow_mask_probs = self.pred_shadow_mask_logits
         self.model = tf.keras.Model(inputs=self.input_tensor, outputs=self.pred_shadow_mask_probs)
         # for l in self.model.layers:
         #     if 'denoiser' not in l.name:
@@ -219,7 +219,7 @@ class IrvisNN:
                     load_checkpoint_fpath = os.path.join(utils.FINAL_MODEL_DIR, utils.FINAL_MODEL_NAME)
                 else:
                     prev_dirpath = os.sep.join([self.model_save_dir_root, 'run-' + str(run_number), 'trained_models'])
-                    paths = glob(prev_dirpath + os.sep + '*.' + str(step_number + 1).zfill(2) + '-*')
+                    paths = glob(prev_dirpath + os.sep + '*.' + str(step_number).zfill(2) + '-*')
                     load_checkpoint_fpath = paths[0]
         ps = glob(load_checkpoint_fpath + '*')
         self.load_checkpoint_fpath = load_checkpoint_fpath
@@ -376,7 +376,6 @@ class IrvisNN:
         self.model.fit(self.keras_feeder, callbacks=[lr_sc, saver_keras, tensorboard_callback, infer_sample_callback],
                        steps_per_epoch=self.keras_feeder.streamer.data_feeder.batches_per_epoch,
                        epochs=num_epochs, validation_data=self.keras_feeder_val)
-        k = 0
 
     # def train(self):
     #     print('Training...')
