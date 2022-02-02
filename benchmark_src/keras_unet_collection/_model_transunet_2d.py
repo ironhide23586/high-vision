@@ -383,7 +383,7 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
                  activation='ReLU', mlp_activation='GELU', output_activation='Softmax', batch_norm=False, pool=True,
                  unpool=True,
                  backbone=None, weights='imagenet', freeze_backbone=utils.FREEZE_BACKBONE,
-                 freeze_batch_norm=not utils.UPDATE_BATCHNORM_STATS,
+                 freeze_batch_norm=False,
                  name='transunet'):
     '''
     TransUNET with an optional ImageNet-trained bakcbone.
@@ -461,7 +461,7 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
                                             name='smoothener_outercloudviz_pre')(tap), OUT], axis=-1)
 
     # OUT = tf.expand_dims(out[:, :, :, 1], -1)
-    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 2, activation=output_activation,
+    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 2, activation=None,
                                           name='smoothener_outercloudviz_out')(out)
     OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
 
