@@ -60,7 +60,7 @@ class SBU:
         return mask
 
     def get_image(self, idx):
-        fps = glob(self.im_fpaths[idx] + '/*')
+        fps = sorted(glob(self.im_fpaths[idx] + '/*'))
         # c = 0
         ims = []
         for fp in fps:
