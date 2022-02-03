@@ -461,7 +461,7 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
                                             name='smoothener_outercloudviz_pre')(tap), OUT], axis=-1)
 
     # OUT = tf.expand_dims(out[:, :, :, 1], -1)
-    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 2, activation=None,
+    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 1, activation=None,
                                           name='smoothener_outercloudviz_out')(out)
     OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
 

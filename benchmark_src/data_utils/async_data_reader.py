@@ -78,20 +78,23 @@ class TrainFeeder:
     def __ingest_indices(self, start_idx, end_idx):
         ims = []
         gt_list = []
+        id_list = []
         idx = start_idx
         bs = end_idx - start_idx
         # for idx in range(start_idx, end_idx):
         while len(ims) < bs:
-            im, gts = self.ingestor.get_data_train_format(idx)
+            im, gts, ids = self.ingestor.get_data_train_format(idx)
             # if im is None or gts is None:
             #     idx += 1
             #     continue
             ims.append(im)
             gt_list.append(gts)
+            id_list.append(ids)
             idx += 1
         ims = np.array(ims).astype(np.float32)
         gt_list_out = np.array(gt_list).astype(np.float32)
-        return ims, gt_list_out
+        id_list_out = np.array(id_list)
+        return ims, gt_list_out, id_list_out
 
     def get_data(self, batch_size=None):
         if batch_size is not None:
@@ -114,17 +117,17 @@ class TrainFeeder:
                        'previous_epoch_done': self.epoch_completed}
         start_idx = (self.batch_iters - 1) * self.batch_size
         end_idx = start_idx + self.batch_size
-        ims, gts = self.__ingest_indices(start_idx, end_idx)
-        return ims, gts, train_state
+        ims, gts, ids = self.__ingest_indices(start_idx, end_idx)
+        return ims, gts, ids, train_state
 
     def __queue_filler_process(self):
         while self.data_reader_keepalive:
             if self.buffer.full():
                 time.sleep(2)
                 continue
-            ims, gts, train_state = self.get_data()
+            ims, gts, ids, train_state = self.get_data()
             if ims.shape[0] > 0:
-                self.buffer.put([ims, gts, train_state])
+                self.buffer.put([ims, gts, ids, train_state])
             else:
                 print('Empty batch, skipping....')
 
@@ -140,12 +143,12 @@ class TrainFeeder:
 
     def dequeue(self):
         if not self.buffer.empty():
-            self.batch_data_x, self.batch_data_y, self.train_state = self.buffer.get()
+            self.batch_data_x, self.batch_data_y, ids, self.train_state = self.buffer.get()
             if self.train_state['previous_epoch_done']:
                 logging.info('----------------EPOCH ' + str(self.train_state['epoch'] - 1)
                              + ' COMPLETE----------------')
             logging.info('Epoch ' + str(self.train_state['epoch']) + ', Batch ' + str(self.train_state['batch']))
-            return self.batch_data_x, self.batch_data_y
+            return self.batch_data_x, self.batch_data_y, ids
         else:
             # logging.warning('Buffer empty, waiting for it to repopulate..')
             while self.buffer.empty():

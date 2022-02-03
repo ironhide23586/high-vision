@@ -29,8 +29,9 @@ FREEZE_DECODER = False
 
 IM_DIM = 512
 SHADOW_GT_DIR = '../../driven-data/cloud-cover'
+# SHADOW_GT_DIR = '/codeexecution/data/'
 FINAL_MODEL_DIR = 'final_model'
-FINAL_MODEL_NAME = 'flonet-weights.02-0.73-0.94.hdf5'
+FINAL_MODEL_NAME = 'flonet-weights.01-0.73-0.97.hdf5'
 
 # BIN_POS_CE_COEFF = 3.
 FOCAL_TVERSKY_POWER = 1.5
@@ -41,7 +42,6 @@ HARD_NEGATIVE_MINING_COEFF = 3.  # deprecated while using focal tvsersky loss
 BATCHES_PER_ASYNC_QUEUE = 10
 
 CONFIDENCE_THRESHOLD = .5
-UPDATE_BATCHNORM_STATS = True
 START_TRAIN_STEP = 0
 NUM_TRAIN_STEPS = 1000000
 BASE_LEARN_RATE = 1e-4
@@ -51,7 +51,7 @@ LEARN_RATE_EXPONENTIAL_DECAY_POWER = .068
 
 MODEL_SAVE_DIR_ROOT = 'scratchspace/model_dir'
 MODEL_NAME_PREFIX = 'flonet'
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 SAMPLE_IMAGES_DIR = 'scratchspace/sample_0/images'
 

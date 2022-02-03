@@ -16,9 +16,10 @@ Website: https://www.linkedin.com/in/souham/
 import os
 from glob import glob
 
-# import cv2
+import cv2
+# import rioxarray
 import numpy as np
-import rioxarray
+
 
 from data_utils import async_data_reader
 import utils
@@ -60,8 +61,8 @@ class SBU:
         self.epoch_size = self.im_ids.shape[0]
 
     def get_label(self, idx):
-        mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
-        # mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
+        # mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
+        mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
         return mask
 
     def get_image(self, idx):
@@ -69,8 +70,8 @@ class SBU:
         # c = 0
         ims = []
         for fp in fps:
-            im = rioxarray.open_rasterio(fp).data.squeeze()
-            # im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
+            # im = rioxarray.open_rasterio(fp).data.squeeze()
+            im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
             if im is None:
                 return None
             ims.append(im)

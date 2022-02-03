@@ -82,7 +82,7 @@ class IrvisNN:
 
     def __init__(self, mode='infer'):
         self.mode = mode
-        self.update_bn_stats = True
+        self.update_bn_stats = False
         self.input_tensor = tf.keras.Input(shape=[utils.IM_DIM, utils.IM_DIM, 4], dtype=tf.float32)
         self.n_stack_ups = 2
         self.n_stacks_down = 2
@@ -108,16 +108,6 @@ class IrvisNN:
         # self.pred_shadow_mask_probs = self.pred_shadow_mask_logits
         self.model = tf.keras.Model(inputs=self.input_tensor, outputs=self.pred_shadow_mask_probs)
         self.init()
-        #
-        # # if not utils.UPDATE_BATCHNORM_STATS:
-        # print('BatchNorm frozen')
-        # print("Layers for which batchnorm is unfrozen-")
-        # for l in self.model.layers:
-        #     if 'bn' in l.name:
-        #         if "_outercloudviz_" in l.name:
-        #             l.trainable = False
-        #         else:
-        #             print(l.name)
 
     def init(self):
         load_checkpoint_fpath = os.path.join(utils.FINAL_MODEL_DIR, utils.FINAL_MODEL_NAME)
@@ -128,7 +118,7 @@ class IrvisNN:
         # if ims.shape[0] > 1:
         #     return self.model.predict_on_batch(ims)
         # return self.model(np.tile(ims, [utils.BATCH_SIZE, 1, 1, 1]), training=False)[:1]
-        return self.model(ims, training=True)
+        return self.model(ims, training=False)
 
 
     def infer_cloud_cov(self, ims):

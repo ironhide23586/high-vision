@@ -27,7 +27,7 @@ import utils
 class SBU:
 
     def __init__(self, dirpath, shuffle=utils.SHUFFLE, mode=None):
-        # train_dir_map = {'train': 'train', 'val': 'validate', 'test': '/codeexecution/data/test'}
+        # train_dir_map = {'train': 'train', 'val': 'validate', 'test': utils.SHADOW_GT_DIR + 'test'}
         train_dir_map = {'train': 'train', 'val': 'validate', 'test': 'train'}
         if mode is None:
             mode = utils.MODE
@@ -54,7 +54,9 @@ class SBU:
 
     def get_label(self, idx):
         # mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
-        mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
+        mask = None
+        if os.path.exists(self.mask_fpaths[idx]):
+            mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
         return mask
 
     def get_image(self, idx):
@@ -69,7 +71,7 @@ class SBU:
             ims.append(im)
             # cv2.imwrite(str(c) + '.png', (im / im.max()) * 255)
             # c += 1
-        return np.rollaxis(np.array(ims), 0, 3)
+        return np.rollaxis(np.array(ims), 0, 3), self.im_fpaths[idx].split(os.sep)[-1]
 
     def get_gt_viz(self, idx):
         im_viz = self.__gen_viz(idx)
@@ -104,7 +106,7 @@ class SegmapIngestion:
             self.mode = 'train'
 
     def get_data_train_format(self, idx):
-        im = self.dataset.get_image(idx)
+        im, im_id = self.dataset.get_image(idx)
         mask = self.dataset.get_label(idx)
         # mask = None
         im_ret, mask_ret = self.preprocess(im, mask)
@@ -113,7 +115,7 @@ class SegmapIngestion:
         # utils.force_makedir(dir)
         # cv2.imwrite(dir + '/' + self.mode + '-' + str(idx) + '-x.png', utils.nn_unpreprocess(im_ret))
         # cv2.imwrite(dir + '/' + self.mode + '-' + str(idx) + '-y.png', mask_ret * 255)
-        return im_ret, mask_ret
+        return im_ret, mask_ret, im_id
 
     def preprocess(self, im_in, mask_in):
         if im_in is None:
@@ -138,7 +140,7 @@ class SegmapDataStreamer:
             rp = False
         irvis_nn_ingestor = SegmapIngestion(dataset, h=h, w=w, random_crop=rc, random_rotate=rr,
                                             random_color_perturbations=rp)
-        x, y = irvis_nn_ingestor.get_data_train_format(0)
+        # x, y, id = irvis_nn_ingestor.get_data_train_format(0)
         self.data_feeder = async_data_reader.TrainFeeder(irvis_nn_ingestor, batch_size=batch_size)
 
     def get_data_batch(self):
