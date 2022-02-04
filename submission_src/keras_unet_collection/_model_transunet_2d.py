@@ -8,7 +8,6 @@ from tensorflow.image import extract_patches
 from tensorflow.keras.layers import Layer, LayerNormalization, Dense, Embedding
 
 import utils
-from keras_unet_collection._backbone_zoo import backbone_zoo
 from keras_unet_collection._model_unet_2d import UNET_left, UNET_right
 from keras_unet_collection.layer_utils import *
 from tensorflow_addons import MultiHeadAttention
@@ -186,7 +185,6 @@ def ViT_block(V, num_heads, key_dim, filter_num_MLP, activation='GELU', name='Vi
 def transunet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2,
                       proj_dim=768, num_mlp=3072, num_heads=12, num_transformer=12,
                       activation='ReLU', mlp_activation='GELU', batch_norm=False, pool=True, unpool=True,
-                      backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True,
                       name='transunet'):
     '''
     The base of transUNET with an optional ImageNet-trained backbone.
@@ -239,10 +237,6 @@ def transunet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2
         X: output tensor.
     
     '''
-    # input_tensor = tf.image.resize(input_tensor_, (utils.IM_DIM, utils.IM_DIM), preserve_aspect_ratio=True,
-    #                                antialias=True)
-    activation_func = eval(activation)
-
     X_skip = []
     depth_ = len(filter_num)
 
@@ -268,54 +262,19 @@ def transunet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2
 
     # ----- UNet-like downsampling ----- #
 
-    # no backbone cases
-    if backbone is None:
+    X = input_tensor
 
-        X = input_tensor
+    # stacked conv2d before downsampling
+    X = CONV_stack(X, filter_num[0], stack_num=stack_num_down, activation=activation,
+                   batch_norm=batch_norm, name='{}_down0'.format(name))
+    X_skip.append(X)
+    tap = tf.identity(X)
 
-        # stacked conv2d before downsampling
-        X = CONV_stack(X, filter_num[0], stack_num=stack_num_down, activation=activation,
-                       batch_norm=batch_norm, name='{}_down0'.format(name))
+    # downsampling blocks
+    for i, f in enumerate(filter_num[1:]):
+        X = UNET_left(X, f, stack_num=stack_num_down, activation=activation, pool=pool,
+                      batch_norm=batch_norm, name='{}_down{}'.format(name, i + 1))
         X_skip.append(X)
-        tap = tf.identity(X)
-
-        # downsampling blocks
-        for i, f in enumerate(filter_num[1:]):
-            X = UNET_left(X, f, stack_num=stack_num_down, activation=activation, pool=pool,
-                          batch_norm=batch_norm, name='{}_down{}'.format(name, i + 1))
-            X_skip.append(X)
-
-    # backbone cases
-    else:
-        # handling VGG16 and VGG19 separately
-        if 'VGG' in backbone:
-            backbone_ = backbone_zoo(backbone, weights, input_tensor, depth_, freeze_backbone, freeze_batch_norm)
-            # collecting backbone feature maps
-            X_skip = backbone_([input_tensor, ])
-            depth_encode = len(X_skip)
-
-        # for other backbones
-        else:
-
-            backbone_ = backbone_zoo(backbone, weights, input_tensor, depth_ - 1, freeze_backbone, freeze_batch_norm)
-
-            # collecting backbone feature maps
-            X_skip = backbone_([input_tensor, ])
-            depth_encode = len(X_skip) + 1
-
-        # extra conv2d blocks are applied
-        # if downsampling levels of a backbone < user-specified downsampling levels
-        if depth_encode < depth_:
-
-            # begins at the deepest available tensor  
-            X = X_skip[-1]
-
-            # extra downsamplings
-            for i in range(depth_ - depth_encode):
-                i_real = i + depth_encode
-                X = UNET_left(X, filter_num[i_real], stack_num=stack_num_down, activation=activation, pool=pool,
-                              batch_norm=batch_norm, name='{}_down{}'.format(name, i_real + 1))
-                X_skip.append(X)
 
     # subtrack the last tensor (will be replaced by the ViT output)
     X = X_skip[-1]
@@ -381,10 +340,7 @@ def transunet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2
 def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stack_num_up=2,
                  proj_dim=768, num_mlp=3072, num_heads=12, num_transformer=12,
                  activation='ReLU', mlp_activation='GELU', output_activation='Softmax', batch_norm=False, pool=True,
-                 unpool=True,
-                 backbone=None, weights='imagenet', freeze_backbone=utils.FREEZE_BACKBONE,
-                 freeze_batch_norm=False,
-                 name='transunet'):
+                 unpool=True, name='transunet'):
     '''
     TransUNET with an optional ImageNet-trained bakcbone.
     
@@ -441,57 +397,19 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
         model: a keras model.
     
     '''
-    # input_placeholder = tf.image.resize(input_placeholder, (utils.IM_DIM // 2, utils.IM_DIM // 2),
-    #                                     antialias=True, preserve_aspect_ratio=True)
     X, base_params, upper_params, tap = transunet_2d_base(input_placeholder, filter_num, stack_num_down=stack_num_down,
                                                           stack_num_up=stack_num_up,
                                                           proj_dim=proj_dim, num_mlp=num_mlp, num_heads=num_heads,
                                                           num_transformer=num_transformer,
                                                           activation=activation, mlp_activation=mlp_activation,
                                                           batch_norm=batch_norm, pool=pool,
-                                                          unpool=unpool,
-                                                          backbone=backbone, weights=weights,
-                                                          freeze_backbone=freeze_backbone,
-                                                          freeze_batch_norm=freeze_batch_norm, name=name)
-    n0 = len(tf.compat.v1.global_variables())
+                                                          unpool=unpool, name=name)
     OUT = CONV_output(X, n_labels, kernel_size=1, activation=output_activation,
                       name='{}_outercloudviz_output'.format(name))
 
     out = tf.concat([tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation,
                                             name='smoothener_outercloudviz_pre')(tap), OUT], axis=-1)
-
-    # OUT = tf.expand_dims(out[:, :, :, 1], -1)
     OUT = tf.keras.layers.Conv2DTranspose(1, 5, 1, activation=None,
                                           name='smoothener_outercloudviz_out')(out)
     OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
-
-    # sm = tf.keras.layers.Conv2DTranspose(8, 3, 1, activation='relu', name='denoiser_l0',
-    #                                      use_bias=False)(input_placeholder)
-    # sm = tf.keras.layers.BatchNormalization(name='denoiser_l0_bn')(sm)
-    # sm = tf.keras.layers.Conv2D(16, 3, 1, activation=output_activation, name='denoiser_l1',
-    #                             use_bias=False)(sm)
-    # sm = tf.keras.layers.BatchNormalization(name='denoiser_l1_bn')(sm)
-    # OUT = tf.concat([OUT, sm], axis=-1)
-    # OUT = tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation, name='denoiser_l2_')(OUT)
-
-    upper_params += tf.compat.v1.global_variables()[n0:]
-
-    base_init = tf.compat.v1.variables_initializer(base_params)
-    upper_init = tf.compat.v1.variables_initializer(upper_params)
-
-    if freeze_backbone:
-        shadow_params = upper_params
-    else:
-        shadow_params = base_params + upper_params
-    shadow_backprop_vars = shadow_params
-    # shadow_params = tf.compat.v1.global_variables()
-    # shadow_backprop_vars, shadow_update_vars = utils.split_to_backprop_and_update(shadow_params)
-    # ops = tf.compat.v1.get_default_graph().get_operations()
-    # shadow_update_ops = [op for op in ops if 'bn' in op.name]
-    # shadow_backprop_vars = [v for v in shadow_backprop_vars if v.trainable]
-    optimization_vars_and_ops = [shadow_backprop_vars]
-    backprop_stop_vars_shadow = []
-
-    nn_outs = OUT
-    return nn_outs, optimization_vars_and_ops, backprop_stop_vars_shadow, [base_init, upper_init], \
-           [base_params, upper_params]
+    return OUT

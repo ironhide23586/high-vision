@@ -20,7 +20,6 @@ from glob import glob
 import numpy as np
 import rioxarray
 
-from data_utils import async_data_reader
 import utils
 
 
@@ -45,7 +44,7 @@ class SBU:
         return mask
 
     def get_image(self, idx):
-        fps = glob(self.im_fpaths[idx] + '/*')
+        fps = sorted(glob(self.im_fpaths[idx] + '/*'))
         ims = []
         for fp in fps:
             im = rioxarray.open_rasterio(fp).data.squeeze()
@@ -97,36 +96,6 @@ class SegmapDataStreamer:
         self.epoch_size_total = self.ingestor.dataset.epoch_size
         self.batches_per_epoch = self.epoch_size_total // utils.BATCH_SIZE
         print('Total number of images =', self.epoch_size_total)
-        # x, y, id = self.ingestor.get_data_train_format(0)
-        # self.data_feeder = async_data_reader.TrainFeeder(ingestor, batch_size=batch_size)
 
     def get_data(self, idx):
         return self.ingestor.get_data_train_format(idx)
-
-
-class StreamerContainer:
-
-    def __init__(self, streamers, random_sample=False):
-        self.streamers = streamers
-        self.random_sample = random_sample
-        self.num_streamers = len(self.streamers)
-        self.current_streamer_idx = -1
-        self.streamer = None
-
-    def get_data_batch(self, streamer_idx=None):
-        if self.random_sample:
-            self.current_streamer_idx = np.random.randint(self.num_streamers)
-        else:
-            if streamer_idx is None:
-                if self.current_streamer_idx + 1 >= self.num_streamers:
-                    self.current_streamer_idx = 0
-                else:
-                    self.current_streamer_idx += 1
-            else:
-                self.current_streamer_idx = streamer_idx
-        self.streamer = self.streamers[self.current_streamer_idx]
-        return self.streamer.get_data_batch()
-
-    def die(self):
-        for streamer in self.streamers:
-            streamer.die()

@@ -20,18 +20,12 @@ import numpy as np
 
 MODE = 'test'  # choose between train and val
 BATCH_SIZE = 1
-SHUFFLE = True
-PRINT_LOSS_EVERY_N_STEPS = 50
-IDX_FPATH = 'train_val_indices'
-
-FREEZE_BACKBONE = False
-FREEZE_DECODER = False
 
 IM_DIM = 512
-# SHADOW_GT_DIR = '../../driven-data/cloud-cover'
+# SHADOW_GT_DIR = 'C:\\Users\\souha\\source\\repos\\microsoft_cloud_cover\\driven-data\\cloud-cover'
 SHADOW_GT_DIR = '/codeexecution/data'
 FINAL_MODEL_DIR = 'final_model'
-FINAL_MODEL_NAME = 'flonet-weights.01-0.73-0.97.hdf5'
+FINAL_MODEL_NAME = 'flonet-weights.01-0.89-0.93.hdf5'
 
 BATCHES_PER_ASYNC_QUEUE = 10
 CONFIDENCE_THRESHOLD = .5

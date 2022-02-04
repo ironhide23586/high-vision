@@ -2,3 +2,6 @@
 scratchspace/
 .idea/
 benchmark_src/*.png
+submission_src/submission_outs/
+*.zip
+*.gz

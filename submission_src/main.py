@@ -23,12 +23,12 @@ import utils
 
 
 OUT_DIR = '/codeexecution/predictions'
-# OUT_DIR = '../scratchspace/preds'
+# OUT_DIR = utils.SHADOW_GT_DIR + '/' + utils.FINAL_MODEL_NAME + '-outs'
 
 
 if __name__ == '__main__':
     segmap_data_streamer_test = SegmapDataStreamer(mode='test')
-    irvis_nn = IrvisNN(mode='infer')
+    irvis_nn = IrvisNN()
     utils.force_makedir(OUT_DIR)
     print('Inferring test images...')
     for i in tqdm(range(segmap_data_streamer_test.batches_per_epoch)):
