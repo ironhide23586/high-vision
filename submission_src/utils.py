@@ -22,6 +22,7 @@ MODE = 'test'  # choose between train and val
 BATCH_SIZE = 1
 
 IM_DIM = 512
+# SHADOW_GT_DIR = "/home/ubuntu/cloud-cover-runtime/runtime/data"
 # SHADOW_GT_DIR = 'C:\\Users\\souha\\source\\repos\\microsoft_cloud_cover\\driven-data\\cloud-cover'
 SHADOW_GT_DIR = '/codeexecution/data'
 FINAL_MODEL_DIR = 'final_model'

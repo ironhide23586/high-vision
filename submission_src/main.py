@@ -23,7 +23,7 @@ import utils
 
 
 OUT_DIR = '/codeexecution/predictions'
-# OUT_DIR = utils.SHADOW_GT_DIR + '/' + utils.FINAL_MODEL_NAME + '-outs'
+# OUT_DIR = utils.SHADOW_GT_DIR + '-outs/' + utils.FINAL_MODEL_NAME
 
 
 if __name__ == '__main__':

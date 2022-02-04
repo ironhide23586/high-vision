@@ -2,11 +2,11 @@
 from __future__ import absolute_import
 
 from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
 from keras_unet_collection._backbone_zoo import backbone_zoo, bach_norm_checker
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
+
 
 def UNET_left(X, channel, kernel_size=3, stack_num=2, activation='ReLU', 
               pool=True, batch_norm=False, name='left0'):
@@ -88,13 +88,8 @@ def UNET_right(X, X_list, channel, kernel_size=3,
     # Stacked convolutions after concatenation 
     X = CONV_stack(X, channel, kernel_size, stack_num=stack_num, activation=activation, 
                    batch_norm=batch_norm, name=name+'_conv_after_concat')
-
-    # pool_size = 2
-    #
-    # X = decode_layer(X, channel, pool_size, unpool,
-    #                  activation=activation, batch_norm=batch_norm, name='{}_decode'.format(name))
-    
     return X
+
 
 def unet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2, 
                  activation='ReLU', batch_norm=False, pool=True, unpool=True, 

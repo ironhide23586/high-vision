@@ -10,7 +10,9 @@ from tensorflow.keras.layers import Layer, LayerNormalization, Dense, Embedding
 import utils
 from keras_unet_collection._model_unet_2d import UNET_left, UNET_right
 from keras_unet_collection.layer_utils import *
-from tensorflow_addons import MultiHeadAttention
+
+# from tensorflow_addons import MultiHeadAttention
+from tensorflow.keras.layers import MultiHeadAttention
 
 
 class ViT_patch_gen(Layer):
@@ -169,6 +171,7 @@ def ViT_block(V, num_heads, key_dim, filter_num_MLP, activation='GELU', name='Vi
     V_atten = LayerNormalization(name='{}_layer_norm_1'.format(name))(V_atten)
     V_atten = MultiHeadAttention(num_heads=num_heads, key_dim=key_dim,
                                  name='{}_atten'.format(name))(V_atten, V_atten, training=is_training)
+
     # Skip connection
     V_add = add([V_atten, V], name='{}_skip_1'.format(name))  # <--- skip
 

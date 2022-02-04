@@ -46,6 +46,7 @@ class IrvisNN:
     def init(self):
         load_checkpoint_fpath = os.path.join(utils.FINAL_MODEL_DIR, utils.FINAL_MODEL_NAME)
         self.model.load_weights(load_checkpoint_fpath, by_name=True, skip_mismatch=False)
+        # print(self.model.layers[1].weights)
         print('Loaded model from', load_checkpoint_fpath)
 
     def __inference_worker(self, ims):
