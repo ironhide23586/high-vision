@@ -19,13 +19,13 @@ from queue import Queue
 import numpy as np
 
 MODE = 'train'  # choose between train and val
-BATCH_SIZE = 2
+BATCH_SIZE = 1
 SHUFFLE = True
 PRINT_LOSS_EVERY_N_STEPS = 50
 IDX_FPATH = 'train_val_indices'
 
 FREEZE_BACKBONE = False
-FREEZE_DECODER = True
+FREEZE_DECODER = False
 
 IM_DIM = 512
 SHADOW_GT_DIR = '../driven-data/cloud-cover'

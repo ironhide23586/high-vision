@@ -26,7 +26,7 @@ IM_DIM = 512
 # SHADOW_GT_DIR = 'C:\\Users\\souha\\source\\repos\\microsoft_cloud_cover\\driven-data\\cloud-cover'
 SHADOW_GT_DIR = '/codeexecution/data'
 FINAL_MODEL_DIR = 'final_model'
-FINAL_MODEL_NAME = 'flonet-weights.01-0.89-0.93.hdf5'
+FINAL_MODEL_NAME = 'flonet-weights.09-0.94-0.93.hdf5'
 
 BATCHES_PER_ASYNC_QUEUE = 10
 CONFIDENCE_THRESHOLD = .5
