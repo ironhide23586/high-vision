@@ -26,13 +26,14 @@ import tensorflow as tf
 #     tf.disable_v2_behavior()
 
 # import cv2
-import numpy as np
-from sklearn.metrics import precision_recall_fscore_support
+
 from tqdm import tqdm
 from keras_unet_collection import models
 import utils
 from data_utils.data_io import SegmapDataStreamer, StreamerContainer
 from tensorflow.keras.utils import Sequence
+import numpy as np
+from sklearn.metrics import precision_recall_fscore_support
 
 
 class KerasData(Sequence):

@@ -28,16 +28,27 @@ import utils
 class SBU:
 
     def __init__(self, dirpath, shuffle=utils.SHUFFLE, mode=None, train_frac=.8):
-        train_dir_map = {'train': 'train', 'val': 'validate', 'test': 'test'}
+        train_dir_map = {'train': '', 'val': 'validate', 'test': 'test'}
         if mode is None:
             mode = utils.MODE
         self.mode = mode
         self.train_frac = train_frac
         self.root_data_dir = dirpath
         print('---> Loading Dataset from', self.root_data_dir)
-        self.images_dir_prefix = os.sep.join([self.root_data_dir, train_dir_map['train'] + '_features'])
-        self.labels_dir_prefix = os.sep.join([self.root_data_dir, train_dir_map['train'] + '_labels'])
-        self.im_fpaths = np.array(glob(self.images_dir_prefix + os.sep + '*'))
+        self.images_dir_prefix = os.sep.join([self.root_data_dir, train_dir_map['train'] + 'pred'])
+        self.labels_dir_prefix = os.sep.join([self.root_data_dir, train_dir_map['train'] + 'gt'])
+        dirs = glob(self.labels_dir_prefix + os.sep + '*')
+        self.gt_depth_fpaths = np.hstack([glob(d + os.sep + '*') for d in dirs])
+        self.pred_depth_fpaths = np.array([p.replace('gt', 'pred').replace('.tif', '_flow2.pfm')
+                                           for p in self.gt_depth_fpaths])
+        self.im_fpaths = np.array([p.replace('gt', 'pred').replace('.tif', '.jpg') for p in self.gt_depth_fpaths])
+        filt = np.array([os.path.exists(self.gt_depth_fpaths[i]) and
+                         os.path.exists(self.pred_depth_fpaths[i]) and
+                         os.path.exists(self.im_fpaths[i]) for i in range(self.gt_depth_fpaths.shape[0])])
+        self.gt_depth_fpaths = self.gt_depth_fpaths[filt]
+        self.pred_depth_fpaths = self.pred_depth_fpaths[filt]
+        self.im_fpaths = self.im_fpaths[filt]
+
         self.shuffle = shuffle
         if shuffle:
             if not os.path.exists(utils.IDX_FPATH + '.npy'):
@@ -52,32 +63,39 @@ class SBU:
             self.im_fpaths = self.im_fpaths[:int(train_frac * n)]
         elif train_dir_map[mode] == 'validate':
             self.im_fpaths = self.im_fpaths[int(train_frac * n):]
-        self.im_ids = np.array([fp.split(os.sep)[-1] for fp in self.im_fpaths])
-        self.mask_fpaths = np.array([self.labels_dir_prefix + os.sep + id + '.tif' for id in self.im_ids])
+        # self.im_ids = np.array([fp.split(os.sep)[-1] for fp in self.im_fpaths])
+        # self.mask_fpaths = np.array([self.labels_dir_prefix + os.sep + id + '.tif' for id in self.im_ids])
         # legit_idx = [os.path.isfile(fp) for fp in self.mask_fpaths]
         # self.im_fpaths = self.im_fpaths[legit_idx]
         # self.mask_fpaths = self.mask_fpaths[legit_idx]
         # self.im_ids = self.im_ids[legit_idx]
-        self.epoch_size = self.im_ids.shape[0]
+        self.epoch_size = self.im_fpaths.shape[0]
 
     def get_label(self, idx):
         # mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
-        mask = cv2.imread(self.mask_fpaths[idx], cv2.IMREAD_ANYDEPTH)
-        return mask
+        gt_depth = cv2.imread(self.gt_depth_fpaths[idx], cv2.IMREAD_ANYDEPTH)
+        y = gt_depth / self.depth_max
+        return y
+
+    def viz_depth_rb(self, d_):
+        d = d_ - d_.min()
+        d = d / d.max()
+        d = np.tile(np.expand_dims(d, -1), [1, 1, 3])
+        od = ([255, 0, 0] * d) + ([0, 0, 255] * (1. - d))
+        return od
 
     def get_image(self, idx):
-        fps = glob(self.im_fpaths[idx] + '/*')
-        # c = 0
-        ims = []
-        for fp in fps:
-            # im = rioxarray.open_rasterio(fp).data.squeeze()
-            im = cv2.imread(fp, cv2.IMREAD_ANYDEPTH)
-            if im is None:
-                return None
-            ims.append(im)
-            # cv2.imwrite(str(c) + '.png', (im / im.max()) * 255)
-            # c += 1
-        return np.rollaxis(np.array(ims), 0, 3)
+        im = cv2.imread(self.im_fpaths[idx]) / 255.
+        pred_depth = cv2.imread(self.pred_depth_fpaths[idx], cv2.IMREAD_ANYDEPTH)
+        self.pred_depth_min = pred_depth.min()
+        depth = pred_depth - self.pred_depth_min
+        self.depth_max = depth.max()
+        depth = depth / self.depth_max
+        h, w, _ = im.shape
+        x = np.zeros([h, w, 4]).astype(np.float)
+        x[:, :, :3] = im
+        x[:, :, -1] = depth
+        return x
 
     def get_gt_viz(self, idx):
         im_viz = self.__gen_viz(idx)
@@ -164,7 +182,7 @@ class SegmapIngestion:
             im = np.clip(im.astype(np.float) + color_vec, 0, 255).astype(np.uint8)
         # cv2.imwrite('v.jpg', utils.overlay_mask(im, mask))
         im = utils.nn_preprocess(im)
-        mask[mask > 0] = 1.
+        # mask[mask > 0] = 1.
         return im, mask
 
 

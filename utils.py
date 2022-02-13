@@ -28,9 +28,9 @@ FREEZE_BACKBONE = False
 FREEZE_DECODER = False
 
 IM_DIM = 512
-SHADOW_GT_DIR = '../driven-data/cloud-cover'
+SHADOW_GT_DIR = './scratchspace/depth_dataset'
 FINAL_MODEL_DIR = 'final_model'
-FINAL_MODEL_NAME = 'model-v0'
+FINAL_MODEL_NAME = 'flonet-weights.09-0.94-0.93.hdf5'
 
 # BIN_POS_CE_COEFF = 3.
 FOCAL_TVERSKY_POWER = 1.5
@@ -144,13 +144,13 @@ def auto_canny(image_, sigma=0.33):
 
 
 def nn_preprocess(im_in_):  # re-implemented what tensorflow was doing internally for NASnet.
-    im = im_in_ / im_in_.max()
+    # im = im_in_ / im_in_.max()
     # im_in = im_in_ - im_in_.min()
     # im_in = (im_in / im_in.max()) * 255.
     # im_edged = auto_canny(im_in) / 255.
     # im_edged[im_edged < 1.] = -1.
     # im = im_in / 255.
-    im = im - .5
+    im = im_in_ - .5
     im = im * 2.
     # h, w, _ = im.shape
     # im_ = np.zeros([h, w, 4], dtype=np.float)
