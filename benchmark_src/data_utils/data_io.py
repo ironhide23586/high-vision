@@ -94,10 +94,8 @@ class SBU:
 
 class SegmapIngestion:
 
-    def __init__(self, dataset, h, w, random_crop=False, random_rotate=False, random_color_perturbations=False):
+    def __init__(self, dataset, random_crop=False, random_rotate=False, random_color_perturbations=False):
         self.dataset = dataset
-        self.h = h
-        self.w = w
         self.random_crop = random_crop
         self.random_rotate = random_rotate
         self.random_color_perturbations = random_color_perturbations
@@ -126,8 +124,7 @@ class SegmapIngestion:
 
 class SegmapDataStreamer:
 
-    def __init__(self, h=utils.IM_DIM, w=utils.IM_DIM, shuffle=utils.SHUFFLE, mode=None,
-                 batch_size=utils.BATCH_SIZE):
+    def __init__(self, shuffle=utils.SHUFFLE, mode=None, batch_size=utils.BATCH_SIZE):
         self.num_streamers = 1
         gt_dir = utils.SHADOW_GT_DIR
         dataset = SBU(gt_dir, shuffle=shuffle, mode=mode)
@@ -138,7 +135,7 @@ class SegmapDataStreamer:
             rc = False
             rr = False
             rp = False
-        irvis_nn_ingestor = SegmapIngestion(dataset, h=h, w=w, random_crop=rc, random_rotate=rr,
+        irvis_nn_ingestor = SegmapIngestion(dataset, random_crop=rc, random_rotate=rr,
                                             random_color_perturbations=rp)
         # x, y, id = irvis_nn_ingestor.get_data_train_format(0)
         self.data_feeder = async_data_reader.TrainFeeder(irvis_nn_ingestor, batch_size=batch_size)

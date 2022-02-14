@@ -89,6 +89,34 @@ class InferSamples(tf.keras.callbacks.Callback):
         self.worker('test_begin')
 
 
+# class DistanceError(tf.keras.metrics.Metric):
+#
+#     def __init__(self, name='distance_error'):
+#         super(DistanceError, self).__init__(name=name)
+#         # self.input_tensor = in_tensor
+#         self.d_err_n = self.add_weight(name='d_error_n', initializer='zeros', dtype=tf.float32)
+#         self.d_err = self.add_weight(name='d_error', initializer='zeros', dtype=tf.float32)
+#
+#     def update_state(self, y_true, y_pred, sample_weight=None):
+#         err = self.distance_error(y_true, y_pred)
+#         self.d_err_n.assign_add(1)
+#         self.d_err.assign_add(err)
+#
+#     def reset_state(self):
+#         self.d_err = 0
+#         self.d_err_n = 0
+#
+#     def result(self):
+#         return self.d_err / self.d_err_n
+#
+#     def distance_error(self, y_true, y_pred):
+#         in_maxes = tf.reduce_max(tf.reduce_max(y_pred[:, :, :, -1], -1), -1)
+#         pred_d = tf.pow(y_pred, 0.25) * in_maxes
+#         gt_d = tf.pow(y_true, 0.25) * in_maxes
+#         err = tf.reduce_mean(tf.linalg.norm(pred_d - gt_d))
+#         return err
+
+
 class IrvisNN:
 
     def __init__(self, data_feeder=None, val_data_feeder=None, mode=utils.MODE,
@@ -100,7 +128,8 @@ class IrvisNN:
                  load_final_model=False, init_model=False):
         self.mode = mode
         self.update_bn_stats = update_bn_stats
-        self.input_tensor = tf.keras.Input(shape=[utils.IM_DIM, utils.IM_DIM, 4], dtype=tf.float32)
+        self.input_tensor = tf.keras.Input(shape=[768, 1024, 5], dtype=tf.float32)
+        # self.t = tf.image.resize(tf.identity(self.input_tensor), (1342, 1788))
         self.n_stack_ups = 2
         self.n_stacks_down = 2
         self.model_save_dir_root = model_save_dir_root
@@ -166,12 +195,12 @@ class IrvisNN:
                                                  weights=None, freeze_backbone=utils.FREEZE_BACKBONE,
                                                  freeze_batch_norm=not self.update_bn_stats,
                                                  name='transunet')
-        self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
+        # self.pred_shadow_mask_probs = tf.nn.sigmoid(self.pred_shadow_mask_logits)
         # self.pred_shadow_mask_probs = tf.clip_by_value(self.pred_shadow_mask_logits, 0., 1.)
-        self.model = tf.keras.Model(inputs=self.input_tensor, outputs=self.pred_shadow_mask_probs)
-        # for l in self.model.layers:
-        #     if 'denoiser' not in l.name:
-        #         l.trainable = False
+        self.model = tf.keras.Model(inputs=self.input_tensor,
+                                    outputs=self.pred_shadow_mask_logits)
+
+        # self.distance_error(self.pred_shadow_mask_logits, self.pred_shadow_mask_logits)
 
         if not utils.UPDATE_BATCHNORM_STATS:
             print('BatchNorm frozen')
@@ -276,87 +305,52 @@ class IrvisNN:
         # return self.model(np.tile(ims, [utils.BATCH_SIZE, 1, 1, 1]), training=False)[:1]
         return self.model(ims, training=False)
 
-    def get_trainer_hard_negative_miner_graph(self, gt_mask_tensor, pred_mask_tensor, hard_negative_mining_coeff,
-                                              conf_thresh=.5):
-        # n = utils.IM_DIM * utils.IM_DIM
-        gts_flattened = tf.reshape(gt_mask_tensor, [-1, ])
-        pos_indices = tf.squeeze(tf.where(tf.greater(gts_flattened, conf_thresh)))
-        gt_pos_confs_flattened = tf.gather(gts_flattened, pos_indices)
-        num_pos_indices = tf.cast(tf.reduce_sum(input_tensor=gt_pos_confs_flattened), tf.float32)
+    def init_shadow_training_graph(self, y_true, y_pred_):
+        pos_indices = tf.squeeze(tf.where(tf.greater(y_true, 0)))
+        gt_ds_flattened = tf.reshape(y_true, [-1, ])
+        gt_pos_ds_flattened = tf.gather(gt_ds_flattened, pos_indices)
+        num_pos_indices = tf.cast(tf.reduce_sum(tf.ones_like(gt_pos_ds_flattened)), tf.float32)
 
-        neg_indices_raw = tf.squeeze(tf.where(tf.less_equal(gts_flattened, conf_thresh)))
-        gt_neg_confs_flattened_raw = tf.gather(gts_flattened, neg_indices_raw)
-        num_negs_raw = tf.cast(tf.cast(tf.reduce_sum(gt_neg_confs_flattened_raw + 1), tf.int32), tf.float32)
-        num_neg_indices = tf.cast(tf.clip_by_value(hard_negative_mining_coeff * num_pos_indices,
-                                                   0., num_negs_raw), tf.int32)
+        hard_negative_mining_coeff = 1.
 
-        preds_flattened = tf.reshape(pred_mask_tensor, [-1, ])
-        pred_pos_confs_flattened = tf.gather(preds_flattened, pos_indices, axis=0)
+        neg_indices = tf.squeeze(tf.where(tf.less_equal(gt_ds_flattened, 0)))
+        gt_neg_ds_flattened_raw = tf.gather(gt_ds_flattened, neg_indices)
 
-        preds_flattened_neg = tf.gather(preds_flattened, neg_indices_raw)
-        _, neg_topk_indices = tf.nn.top_k(preds_flattened_neg, k=num_neg_indices)
-        pred_neg_confs_flattened = tf.gather(preds_flattened_neg, neg_topk_indices, axis=0)
-        gt_neg_confs_flattened = tf.gather(tf.gather(gts_flattened, neg_indices_raw), neg_topk_indices)
-        # self.tmp = [num_pos_indices, num_negs_raw, num_neg_indices,
-        #             gt_pos_confs_flattened, gt_neg_confs_flattened,
-        #             pred_pos_confs_flattened, pred_neg_confs_flattened,
-        #             preds_flattened, pos_indices, neg_topk_indices]
-        return gt_pos_confs_flattened, gt_neg_confs_flattened, pred_pos_confs_flattened, pred_neg_confs_flattened, \
-               pos_indices
+        num_negs_raw = tf.cast(tf.cast(tf.reduce_sum(tf.ones_like(gt_neg_ds_flattened_raw)), tf.int32), tf.float32)
+        num_neg_indices = tf.cast(tf.clip_by_value(hard_negative_mining_coeff * num_pos_indices, 0., num_negs_raw),
+                                  tf.int32)  # 0 is depth
+        pred_depths, pred_confs = y_pred_
+        depths_flattened = tf.reshape(pred_depths, [-1, ])
+        confs_flattened = tf.reshape(pred_confs, [-1, ])
+        pred_pos_ds_flattened = tf.gather(depths_flattened, pos_indices, axis=0)
+        gt_pos_ds_flattened = tf.gather(gt_ds_flattened, pos_indices, axis=0)
 
-    def init_shadow_training_graph(self, y_true, y_pred):
-        # gt_pos_shadows_flattened, gt_neg_shadows_flattened, pred_pos_shadows_flattened, pred_neg_shadows_flattened, \
-        # pos_indices = self.get_trainer_hard_negative_miner_graph(y_gt, y_pred,
-        #                                                          utils.HARD_NEGATIVE_MINING_COEFF)
-        # pred_shadow_loss_logits = tf.concat([pred_pos_shadows_flattened, pred_neg_shadows_flattened], 0)
-        # gt_shadow_loss_logits = tf.concat([gt_pos_shadows_flattened, gt_neg_shadows_flattened], 0)
+        confs_flattened_pos = tf.gather(confs_flattened, pos_indices, axis=0)
+        confs_flattened_neg = tf.gather(confs_flattened, neg_indices, axis=0)
 
-        # total_shadow_loss = tf.reduce_mean(1. - pred_pos_shadows_flattened) \
-        #                     + tf.reduce_mean(pred_neg_shadows_flattened)
-        # total_shadow_loss = tf.keras.losses.binary_crossentropy(gt_shadow_loss_logits, pred_shadow_loss_logits)
-        # total_shadow_loss = losses.tversky_loss(y_gt, tf.round(y_pred))
+        _, pos_bottomk_indices = tf.nn.top_k(1. - confs_flattened_pos, k=num_pos_indices)
+        _, neg_topk_indices = tf.nn.top_k(confs_flattened_neg, k=num_neg_indices)
 
-        y_true_pos = tf.reshape(y_true, [-1, ])
-        y_pred_pos = tf.reshape(y_pred, [-1, ])
-        true_pos = tf.reduce_sum(y_true_pos * y_pred_pos)
-        false_neg = tf.reduce_sum(y_true_pos * (1 - y_pred_pos))
-        false_pos = tf.reduce_sum((1 - y_true_pos) * y_pred_pos)
-        alpha = utils.FOCAL_TVERSKY_FALSE_NEGATIVE_COEFF
-        smooth = 1.
-        sc = (true_pos + smooth) / (true_pos + alpha * false_neg + (1 - alpha) * false_pos + smooth)
-        # total_shadow_loss = tf.pow((1. - sc), utils.FOCAL_TVERSKY_POWER)
-        total_shadow_loss = 1. - sc
-        return total_shadow_loss
+        pred_pos_confs_flattened = tf.gather(confs_flattened_pos, pos_bottomk_indices, axis=0)
+        pred_neg_confs_flattened = tf.gather(confs_flattened_neg, neg_topk_indices, axis=0)
+
+        conf_loss = tf.reduce_mean(1. - pred_pos_confs_flattened) + tf.reduce_mean(pred_neg_confs_flattened)
+        d_loss = tf.clip_by_value(tf.abs((pred_pos_ds_flattened - gt_pos_ds_flattened)) / 5., 0., 1.)
+        l = (conf_loss + d_loss) / 2.
+        return l
+
+    def distance_error(self, y_true, y_pred):
+        depths, confs = y_pred
+        d_pred = tf.reshape(depths, [-1, ])
+        d_gt = tf.reshape(y_true, [-1, ])
+        pos_indices = tf.squeeze(tf.where(tf.greater(y_true, 0)))
+        pred_d = tf.gather(d_pred, pos_indices)
+        gt_d = tf.gather(d_gt, pos_indices)
+        err = tf.reduce_mean(tf.abs(pred_d - gt_d))
+        return err
 
     def init_training_graph(self):
-        self.model.compile(optimizer='adam', loss=self.init_shadow_training_graph, metrics=['Precision', 'Recall'])
-
-    def eval_step(self, data_feeder):
-        ims, labels_gt = data_feeder.get_data_batch()
-        _, h, w, _ = ims.shape
-        shadow_mask_pred = self.__inference_worker(ims)
-        shadow_mask_gt = labels_gt[0]
-        shadow_mask_pred_threshed = np.zeros_like(shadow_mask_pred)
-        shadow_mask_pred_threshed[shadow_mask_pred > .5] = 1
-        shadow_gt, shadow_pred = shadow_mask_gt.flatten(), shadow_mask_pred_threshed.flatten()
-        shadow_prec, shadow_rec, shadow_fsc, _ = precision_recall_fscore_support(shadow_gt, shadow_pred)
-        shadow_prec = shadow_prec[1]
-        shadow_rec = shadow_rec[1]
-        shadow_fsc = shadow_fsc[1]
-        shadow_stats = np.array([shadow_prec, shadow_rec, shadow_fsc])
-        return shadow_stats
-
-    def eval(self):
-        print('Evaluating...')
-        shadows = []
-        for i in range(self.data_feeder.num_streamers):
-            for _ in tqdm(range(self.data_feeder.streamers[i].data_feeder.batches_per_epoch)):
-                # for _ in tqdm(range(10)):  # FOR DEBUG ONLY
-                shadow_stats = self.eval_step(self.data_feeder.streamers[i])
-                shadows.append(shadow_stats)
-        shadows = np.array(shadows)
-        shadow_prf = shadows.mean(axis=0)
-        return shadow_prf
+        self.model.compile(optimizer='adam', loss=self.init_shadow_training_graph, metrics=[self.distance_error])
 
     def train(self):
         exp_dec = tf.keras.optimizers.schedules.ExponentialDecay(self.base_lr, self.num_train_steps,
@@ -370,44 +364,16 @@ class IrvisNN:
                                                          monitor='loss', save_best_only=False,
                                                          save_weights_only=True)
         num_epochs = int(np.round(utils.NUM_TRAIN_STEPS / self.keras_feeder.streamer.data_feeder.batches_per_epoch))
-        logdir = os.sep.join([self.model_save_dir_root, self.model_save_dirname, 'logs'])
+        logdir = os.sep.join([self.model_save_dir_root, 'logs'])
         utils.force_makedir(logdir)
         logdir += os.sep + datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, write_graph=False, write_images=True,
                                                               histogram_freq=1,
                                                               update_freq=utils.PRINT_LOSS_EVERY_N_STEPS)
         infer_sample_callback = InferSamples(self.sample_inference_writeout_dirpath, self.model)
-        self.model.fit(self.keras_feeder, callbacks=[lr_sc, saver_keras, tensorboard_callback, infer_sample_callback],
+        self.model.fit(self.keras_feeder, callbacks=[lr_sc, saver_keras, tensorboard_callback],
                        steps_per_epoch=self.keras_feeder.streamer.data_feeder.batches_per_epoch,
                        epochs=num_epochs, validation_data=self.keras_feeder_val)
-
-    # def train(self):
-    #     print('Training...')
-    #     im_paths = glob(utils.SAMPLE_IMAGES_DIR + '/*')
-    #     train_step = self.train_step_tensor.eval(self.sess)
-    #     utils.force_makedir(self.sample_inference_writeout_dirpath)
-    #     try:
-    #         for _ in range(self.num_train_steps):
-    #             if train_step % utils.SAVE_FREQUENCY == 0:
-    #                 self.save()
-    #                 for path in im_paths:
-    #                     print('Inferring', path)
-    #                     im_org = cv2.imread(path)
-    #                     ext = '.' + path.split('.')[-1]
-    #                     out_viz_fpath = self.sample_inference_writeout_dirpath + os.sep \
-    #                                     + path.split(os.sep)[-1].replace(ext, '_inferred-' + str(train_step) + '.png')
-    #                     im_viz, shadow_mask = self.infer(im_org, viz=True)
-    #                     cv2.imwrite(out_viz_fpath, im_viz)
-    #                     cv2.imwrite(out_viz_fpath.replace('.png', '-mask.png'), shadow_mask * 255)
-    #                     print('Output written to', out_viz_fpath)
-    #             all_losses, train_step, learn_rate = self.train_step()
-    #             loss_dict = dict(zip(self.loss_out_keys, all_losses))
-    #             if train_step % utils.PRINT_LOSS_EVERY_N_STEPS == 0:
-    #                 print('Train Step =', train_step, '; learn_rate =', learn_rate, loss_dict)
-    #     except KeyboardInterrupt:
-    #         print('Training abort signal received, releasing resources...')
-    #         self.die()
-    #         exit(0)
 
     def die(self):
         print('Killing Data Streamer...')
@@ -428,156 +394,3 @@ class IrvisNN:
         # self.model_reader.save(self.sess, save_fpath, global_step=train_step)
         self.model.save_weights(save_fpath, overwrite=False)
         print('The checkpoint has been created with prefix -', save_fpath)
-
-
-class IrvisEval:
-
-    def __init__(self, model_dir=utils.MODEL_SAVE_DIR_ROOT):
-        self.model_dir = model_dir
-        self.model_dirs = np.array(glob(model_dir + os.sep + '*'))
-        run_indices = np.array([int(dp.split('-')[-1]) for dp in self.model_dirs])
-        self.model_dirs = self.model_dirs[np.argsort(run_indices)]
-        self.results_data = {}
-        self.model_fpaths = []
-        self.model_steps = None
-        self.irvis_nn = None
-        self.results_write_path = None
-        self.num_models = 0
-        self.locked_nn_steps = []
-        self.processed_models_log_fpath = None
-
-    def eval_input_model(self, i):
-        print('Evaluating model at', self.model_fpaths[i])
-        self.update_log(i)
-        if str(self.model_steps[i]) in self.results_data:
-            print('Evaluation results already exist -', self.results_data[str(self.model_steps[i])])
-            print('Skipping...')
-            return
-        self.irvis_nn.init(load_checkpoint_fpath=self.model_fpaths[i])
-        shadow_prf = self.irvis_nn.eval()
-        res = {'shadow_mask_prf_eval_stats_pixelwise': {'precision': float(shadow_prf[0]),
-                                                        'recall': float(shadow_prf[1]),
-                                                        'fscore': float(shadow_prf[2])}}
-        print('Done!, results-')
-        print(res)
-        if os.path.isfile(self.results_write_path):
-            self.results_data = json.load(open(self.results_write_path, 'r'))
-        self.results_data[str(self.model_steps[i])] = res
-        print('Updating results file at', self.results_write_path)
-        json.dump(self.results_data, open(self.results_write_path, 'w'), indent=4, sort_keys=True)
-
-    def get_existing_models_data(self, model_dir):
-        print('Evaluating models from', model_dir)
-        self.results_write_path = model_dir + os.sep + 'evaluation_results.json'
-        self.processed_models_log_fpath = model_dir + os.sep + 'processed_model_steps.log'
-
-        model_fpaths = np.array(glob(model_dir + os.sep + 'trained_models' + os.sep + '*.meta'))
-        model_steps = np.array([int(dp.split('-')[-1].replace('.meta', '')) for dp in model_fpaths])
-
-        if os.path.isfile(self.processed_models_log_fpath):
-            with open(self.processed_models_log_fpath, 'r') as f:
-                d = f.readlines()
-                self.locked_nn_steps = [int(l.strip()) for l in d]
-                print('Locked train steps -', self.locked_nn_steps)
-        if os.path.isfile(self.results_write_path):
-            print('Existing evaluation results found at', self.results_write_path)
-            print('Reading from it to avoid re-evaluating models already evaluated....')
-            self.results_data = json.load(open(self.results_write_path, 'r'))
-            self.locked_nn_steps += list(map(int, list(self.results_data.keys())))
-        else:
-            print('No existing evaluation results found, evaluating all', model_fpaths.shape[0], 'models in dir...')
-        self.locked_nn_steps = list(set(self.locked_nn_steps))
-        idx = np.arange(model_steps.shape[0])
-        idx = [i for i in idx if model_steps[i] not in self.locked_nn_steps]
-        if len(idx) == 0:
-            self.model_fpaths = []
-            self.model_steps = None
-            self.num_models = 0
-        else:
-            np.random.shuffle(idx)
-            # idx = idx[:4]  # FOR DEBUG ONLY
-            self.model_fpaths = model_fpaths[idx]
-            self.model_steps = model_steps[idx]
-            self.num_models = self.model_fpaths.shape[0]
-            self.model_fpaths = [p.replace('.meta', '') for p in self.model_fpaths]
-
-    def update_log(self, i):
-        self.locked_nn_steps.append(self.model_steps[i])
-        self.locked_nn_steps = np.sort(list(set(self.locked_nn_steps)))
-        write_str = [str(s) + '\n' for s in self.locked_nn_steps]
-        with open(self.processed_models_log_fpath, 'w') as f:
-            f.writelines(write_str)
-        print('Inserted Step', self.model_steps[i], 'in to log at', self.processed_models_log_fpath)
-
-    def eval_model_dir(self, model_dir, monitor=False):
-        if not monitor:
-            self.get_existing_models_data(model_dir)
-            for i in range(self.num_models):
-                self.eval_input_model(i)
-        else:
-            while True:
-                self.get_existing_models_data(model_dir)
-                if self.num_models > 0:
-                    self.eval_input_model(np.random.randint(self.num_models))
-                else:
-                    print('No new models found, sleeping....')
-                    time.sleep(2)
-
-    def begin_evaluation(self, run_number=None, monitor=False):
-        if run_number is not None:
-            self.model_dirs = np.array([self.model_dir + os.sep + 'run-' + str(run_number)])
-        # data_streamer = DetectionDataStreamer()
-        # detection_data_streamer = DetectionDataStreamer()
-        segmap_data_streamer = SegmapDataStreamer()
-        data_streamer = StreamerContainer([segmap_data_streamer])
-        self.irvis_nn = IrvisNN(data_feeder=data_streamer, init_model=False)
-        for model_dir in self.model_dirs:
-            self.eval_model_dir(model_dir, monitor=monitor)
-        print('Evaluation complete! :)')
-
-    def __get_conf_prf(self, r, keyname):
-        return r[keyname]['precision'], r[keyname]['recall'], r[keyname]['fscore']
-
-    def __get_clf_prf(self, r):
-        prfs = []
-        for label_name in utils.label_names:
-            prfs.append([r['classification_prf_eval_stats'][label_name]['precision'],
-                         r['classification_prf_eval_stats'][label_name]['recall'],
-                         r['classification_prf_eval_stats'][label_name]['fscore']])
-        return prfs
-
-    def __plot_worker(self, xs, ys, colors, labels, out_prefix, out_suffix, arg_func=np.argmax):
-        print('Plotting', labels)
-        import matplotlib.pyplot as plt
-        title_str = ''
-        plt.clf()
-        for i in range(len(labels)):
-            plt.plot(xs, ys[:, i], '-', color=colors[i], label=labels[i])
-            title_str += 'Best ' + labels[i] + ' is at step ' + str(xs[arg_func(ys[:, i])]) + '\nwith value ' + \
-                         str(ys[arg_func(ys[:, i]), i]) + '\n'
-        plt.title(title_str)
-        plt.legend(loc='best')
-        plt.xlabel('Train Step')
-        plt.ylabel('Score/Error')
-        plt.savefig(out_prefix + out_suffix, bbox_inches='tight', dpi=200)
-
-    def plot_results(self, eval_results, out_prefix):
-        steps = np.sort(np.array(list(map(int, eval_results.keys()))))
-        results = np.array([eval_results[str(step)] for step in steps])
-        shadow_stats = np.array([self.__get_conf_prf(r, 'shadow_mask_prf_eval_stats_pixelwise') for r in results])
-        self.__plot_worker(steps, shadow_stats, ['red', 'blue', 'black'], ['Precision', 'Recall', 'F-Score'],
-                           out_prefix, '_shadow_prec_rec_fsc.jpg')
-
-    def visualize_evaluation(self, run_number=None):
-        if run_number is not None:
-            self.model_dirs = np.array([self.model_dir + os.sep + 'run-' + str(run_number)])
-        for model_dir in self.model_dirs:
-            print('Visualizing evaluation results from', model_dir)
-            eval_results_fpath = model_dir + os.sep + 'evaluation_results.json'
-            if not os.path.isfile(eval_results_fpath):
-                print(eval_results_fpath, 'not found, skipping...')
-                continue
-            eval_results = json.load(open(eval_results_fpath, 'r'))
-            result_viz_dir = model_dir + os.sep + 'plots'
-            utils.force_makedir(result_viz_dir)
-            self.plot_results(eval_results, result_viz_dir + os.sep + model_dir.split(os.sep)[-1])

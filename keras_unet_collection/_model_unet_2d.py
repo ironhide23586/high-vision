@@ -7,6 +7,8 @@ from keras_unet_collection._backbone_zoo import backbone_zoo, bach_norm_checker
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
+import tensorflow as tf
+
 
 def UNET_left(X, channel, kernel_size=3, stack_num=2, activation='ReLU', 
               pool=True, batch_norm=False, name='left0'):
@@ -83,7 +85,13 @@ def UNET_right(X, X_list, channel, kernel_size=3,
                    batch_norm=batch_norm, name='{}_conv_before_concat'.format(name))
     if concat:
         # <--- *stacked convolutional can be applied here
-        X = concatenate([X,]+X_list, axis=3, name=name+'_concat')
+
+        _, h, w, c = X.shape
+        _, h_, w_, c = X_list[0].shape
+        # x[:, (h_ - h) // 2: (h_ + h) // 2, (w_ - w) // 2: (w_ + w) // 2, :] = X
+        # tf.pad(X, [[0, 0], [0, (w_ - w) // 2])
+        X = concatenate([tf.pad(X, [[0, 0], [0, 0], [(w_ - w) // 2, (w_ - w) // 2], [0, 0]]),]+X_list,
+                        axis=3, name=name+'_concat')
     
     # Stacked convolutions after concatenation 
     X = CONV_stack(X, channel, kernel_size, stack_num=stack_num, activation=activation, 

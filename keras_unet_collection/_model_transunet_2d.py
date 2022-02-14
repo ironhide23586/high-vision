@@ -454,28 +454,43 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
                                                           freeze_backbone=freeze_backbone,
                                                           freeze_batch_norm=freeze_batch_norm, name=name)
     n0 = len(tf.compat.v1.global_variables())
-    OUT = CONV_output(X, n_labels, kernel_size=1, activation=output_activation,
+    OUT = CONV_output(X, 16, kernel_size=1, activation=output_activation,
                       name='{}_outercloudviz_output'.format(name))
 
-    out = tf.concat([tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation,
+    out = tf.concat([tf.keras.layers.Conv2D(16, 1, 1, activation=output_activation,
                                             name='smoothener_outercloudviz_pre')(tap), OUT],
                     axis=-1)
     # OUT = tf.keras.layers.Conv2DTranspose(1, 1, 1, activation=output_activation, name='smoothener_out')(out)
-    OUT = tf.keras.layers.Conv2DTranspose(1, 5, 1, activation=None,
-                                          name='smoothener_outercloudviz_out')(out)
-    OUT = tf.image.resize(OUT, (utils.IM_DIM, utils.IM_DIM), antialias=True, preserve_aspect_ratio=True)
+    OUT = tf.keras.layers.Conv2DTranspose(16, 5, 1, activation='relu', name='smoothener_outercloudviz_out',
+                                          use_bias=False)(out)
+    OUT = tf.keras.layers.BatchNormalization()(OUT)
+    offset_out = OUT
 
-    # sm = tf.keras.layers.Conv2DTranspose(8, 3, 1, activation='relu', name='denoiser_l0',
-    #                                      use_bias=False)(input_placeholder)
-    # sm = tf.keras.layers.BatchNormalization(name='denoiser_l0_bn')(sm)
-    # sm = tf.keras.layers.Conv2D(16, 3, 1, activation=output_activation, name='denoiser_l1',
-    #                             use_bias=False)(sm)
-    # sm = tf.keras.layers.BatchNormalization(name='denoiser_l1_bn')(sm)
-    # OUT = tf.concat([OUT, sm], axis=-1)
-    # OUT = tf.keras.layers.Conv2D(1, 1, 1, activation=output_activation, name='denoiser_l2_')(OUT)
+    OUT = tf.keras.layers.Conv2DTranspose(8, 5, 1, activation='relu', use_bias=False)(OUT)
+    OUT = tf.keras.layers.BatchNormalization()(OUT)
+
+    OUT = tf.keras.layers.Conv2DTranspose(2, 5, 2, activation='relu', use_bias=False)(OUT)
+    OUT = tf.keras.layers.BatchNormalization()(OUT)
+
+    OUT = tf.nn.sigmoid(tf.image.resize(OUT, (1342, 1788), antialias=True, preserve_aspect_ratio=False))
+
+    offset_inter = tf.keras.layers.Conv2D(8, 5, 2)(offset_out)
+    offset_inter = tf.keras.layers.BatchNormalization()(offset_inter)
+    offset_inter = tf.keras.layers.Conv2D(4, 5, 2, use_bias=True)(offset_inter)
+    offset_inter = tf.keras.layers.Conv2D(2, 5, 3, use_bias=True)(offset_inter)
+    offset_inter = tf.keras.layers.Conv2D(1, 5, 2, use_bias=True)(offset_inter)
+
+    offsets = tf.keras.layers.Dense(10, activation='relu', use_bias=True)(tf.reshape(offset_inter, [-1, 29*40]))
+    offsets = tf.keras.layers.Dense(2, activation='relu', use_bias=True)(offsets)
+
+    mins = offsets[:, 0]
+    maxs = offsets[:, 1]
+
+    depths = ((maxs - mins) * OUT[:, :, :, 0]) + mins  # AXIS 0 IS DEPTH
+    confs = OUT[:, :, :, 1]
+    OUT = [depths, confs]
 
     upper_params += tf.compat.v1.global_variables()[n0:]
-
     base_init = tf.compat.v1.variables_initializer(base_params)
     upper_init = tf.compat.v1.variables_initializer(upper_params)
 
@@ -484,14 +499,8 @@ def transunet_2d(input_placeholder, filter_num, n_labels, stack_num_down=2, stac
     else:
         shadow_params = base_params + upper_params
     shadow_backprop_vars = shadow_params
-    # shadow_params = tf.compat.v1.global_variables()
-    # shadow_backprop_vars, shadow_update_vars = utils.split_to_backprop_and_update(shadow_params)
-    # ops = tf.compat.v1.get_default_graph().get_operations()
-    # shadow_update_ops = [op for op in ops if 'bn' in op.name]
-    # shadow_backprop_vars = [v for v in shadow_backprop_vars if v.trainable]
     optimization_vars_and_ops = [shadow_backprop_vars]
     backprop_stop_vars_shadow = []
 
-    nn_outs = OUT
-    return nn_outs, optimization_vars_and_ops, backprop_stop_vars_shadow, [base_init, upper_init], \
+    return OUT, optimization_vars_and_ops, backprop_stop_vars_shadow, [base_init, upper_init], \
            [base_params, upper_params]

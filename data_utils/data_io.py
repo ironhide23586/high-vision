@@ -42,13 +42,16 @@ class SBU:
         self.pred_depth_fpaths = np.array([p.replace('gt', 'pred').replace('.tif', '_flow2.pfm')
                                            for p in self.gt_depth_fpaths])
         self.im_fpaths = np.array([p.replace('gt', 'pred').replace('.tif', '.jpg') for p in self.gt_depth_fpaths])
+        self.prob_depth_fpaths = np.array([p.replace('gt', 'pred').replace('.tif', '_init_prob.pfm')
+                                           for p in self.gt_depth_fpaths])
         filt = np.array([os.path.exists(self.gt_depth_fpaths[i]) and
                          os.path.exists(self.pred_depth_fpaths[i]) and
-                         os.path.exists(self.im_fpaths[i]) for i in range(self.gt_depth_fpaths.shape[0])])
+                         os.path.exists(self.im_fpaths[i]) and
+                         os.path.exists(self.prob_depth_fpaths[i]) for i in range(self.gt_depth_fpaths.shape[0])])
         self.gt_depth_fpaths = self.gt_depth_fpaths[filt]
         self.pred_depth_fpaths = self.pred_depth_fpaths[filt]
         self.im_fpaths = self.im_fpaths[filt]
-
+        self.prob_depth_fpaths = self.prob_depth_fpaths[filt]
         self.shuffle = shuffle
         if shuffle:
             if not os.path.exists(utils.IDX_FPATH + '.npy'):
@@ -63,19 +66,12 @@ class SBU:
             self.im_fpaths = self.im_fpaths[:int(train_frac * n)]
         elif train_dir_map[mode] == 'validate':
             self.im_fpaths = self.im_fpaths[int(train_frac * n):]
-        # self.im_ids = np.array([fp.split(os.sep)[-1] for fp in self.im_fpaths])
-        # self.mask_fpaths = np.array([self.labels_dir_prefix + os.sep + id + '.tif' for id in self.im_ids])
-        # legit_idx = [os.path.isfile(fp) for fp in self.mask_fpaths]
-        # self.im_fpaths = self.im_fpaths[legit_idx]
-        # self.mask_fpaths = self.mask_fpaths[legit_idx]
-        # self.im_ids = self.im_ids[legit_idx]
         self.epoch_size = self.im_fpaths.shape[0]
 
     def get_label(self, idx):
         # mask = rioxarray.open_rasterio(self.mask_fpaths[idx]).data.squeeze()
         gt_depth = cv2.imread(self.gt_depth_fpaths[idx], cv2.IMREAD_ANYDEPTH)
-        y = gt_depth / self.depth_max
-        return y
+        return gt_depth
 
     def viz_depth_rb(self, d_):
         d = d_ - d_.min()
@@ -87,14 +83,16 @@ class SBU:
     def get_image(self, idx):
         im = cv2.imread(self.im_fpaths[idx]) / 255.
         pred_depth = cv2.imread(self.pred_depth_fpaths[idx], cv2.IMREAD_ANYDEPTH)
-        self.pred_depth_min = pred_depth.min()
-        depth = pred_depth - self.pred_depth_min
-        self.depth_max = depth.max()
-        depth = depth / self.depth_max
+        h, w = pred_depth.shape
+        probs = cv2.resize(cv2.imread(self.prob_depth_fpaths[idx], cv2.IMREAD_ANYDEPTH),
+                           (w, h), cv2.INTER_NEAREST)
+        self.depth_max = pred_depth.max()
+        depth = pred_depth / self.depth_max
         h, w, _ = im.shape
         x = np.zeros([h, w, 4]).astype(np.float)
         x[:, :, :3] = im
-        x[:, :, -1] = depth
+        x[:, :, -2] = depth**4
+        x[:, :, -1] = probs
         return x
 
     def get_gt_viz(self, idx):
@@ -133,56 +131,11 @@ class SegmapIngestion:
         im = self.dataset.get_image(idx)
         mask = self.dataset.get_label(idx)
         im_ret, mask_ret = self.preprocess(im, mask)
-
-        # dir = 'scratchspace/sample_train'
-        # utils.force_makedir(dir)
-        # cv2.imwrite(dir + '/' + self.mode + '-' + str(idx) + '-x.png', utils.nn_unpreprocess(im_ret))
-        # cv2.imwrite(dir + '/' + self.mode + '-' + str(idx) + '-y.png', mask_ret * 255)
         return im_ret, mask_ret
 
     def preprocess(self, im_in, mask_in):
-        if im_in is None:
-            return None, None
-        org_h, org_w, _ = im_in.shape
-        r = 1. * self.w / self.h
-        random_rotate = self.random_rotate
-        random_crop = self.random_crop
-        random_color_perturbations = self.random_color_perturbations
-        if np.random.random() < .3 or self.mode == 'val':
-            random_rotate = False
-            random_crop = False
-            random_color_perturbations = False
-        if random_rotate:
-            angle = np.random.uniform(0, 359.99)
-            m = cv2.getRotationMatrix2D((org_w // 2, org_h // 2), angle, 1.4)
-            im = cv2.warpAffine(im_in, m, (org_w, org_h))
-            mask = cv2.warpAffine(mask_in, m, (org_w, org_h))
-            mask[mask < 128] = 0
-            mask[mask >= 128] = 255
-        else:
-            im = im_in
-        if random_crop:
-            h = np.random.randint(int(.5 * org_h), org_h)
-            w = int(r * h)
-            start_w, end_w = utils.get_random_crop_ends(org_w, w)
-            start_h, end_h = utils.get_random_crop_ends(org_h, h)
-            im = cv2.resize(im[start_h:end_h, start_w:end_w],
-                            (self.w, self.h), interpolation=cv2.INTER_LINEAR)
-            mask = cv2.resize(mask[start_h:end_h, start_w:end_w].astype(np.float32),
-                              (self.w, self.h), interpolation=cv2.INTER_NEAREST)
-        else:
-            # im = utils.resize_aspect_ratio_preserved(im_in, min(self.h, self.w), interp=cv2.INTER_LINEAR)
-            # mask = utils.resize_aspect_ratio_preserved(mask_in, min(1280, 1280), interp=cv2.INTER_NEAREST)
-            im = im_in.copy()
-            mask = mask_in.copy()
-        if random_color_perturbations:
-            delta = np.random.randint(-45, 45)
-            im = np.clip(im.astype(np.float) + delta, 0, 255).astype(np.uint8)
-            color_vec = np.random.randint(-18, 18, size=3)
-            im = np.clip(im.astype(np.float) + color_vec, 0, 255).astype(np.uint8)
-        # cv2.imwrite('v.jpg', utils.overlay_mask(im, mask))
-        im = utils.nn_preprocess(im)
-        # mask[mask > 0] = 1.
+        im = utils.nn_preprocess(im_in)
+        mask = np.expand_dims(mask_in, -1)
         return im, mask
 
 
@@ -202,7 +155,7 @@ class SegmapDataStreamer:
             rp = False
         irvis_nn_ingestor = SegmapIngestion(dataset, h=h, w=w, random_crop=rc, random_rotate=rr,
                                             random_color_perturbations=rp)
-        # x, y = irvis_nn_ingestor.get_data_train_format(0)
+        x, y = irvis_nn_ingestor.get_data_train_format(0)
         self.data_feeder = async_data_reader.TrainFeeder(irvis_nn_ingestor, batch_size=batch_size)
 
     def get_data_batch(self):
